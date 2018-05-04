@@ -1,0 +1,10 @@
+
+params:
+  fmaps: 96
+
+blocks:
+  - name: stem
+    file: convnet
+    type: proto
+    params:
+      fmaps: ::fmaps

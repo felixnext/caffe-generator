@@ -1,0 +1,25 @@
+name: TestModel
+
+params:
+  act_fct: PReLU
+  size_x: 1300
+
+blocks:
+  - name: input
+    file: blocks/detectnet_input
+    type: proto
+    prefix: test
+    params:
+      size_x: ::size_x
+
+  - name: convnet
+    file: blocks/convnet
+    type: yaml
+    params:
+      fmaps: 20
+
+  - name: output
+    file: blocks/detectnet_output
+    type: proto
+    params:
+      size_x: ::size_x

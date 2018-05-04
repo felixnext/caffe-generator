@@ -1,0 +1,425 @@
+name: TestModel
+
+layer {
+  name: "test/train_data"
+  type: "Data"
+  top: "test/data"
+  include {
+    phase: TRAIN
+  }
+}
+layer {
+  name: "test/train_label"
+  type: "Data"
+  top: "test/label"
+  include {
+    phase: TRAIN
+  }
+}
+layer {
+  name: "test/val_data"
+  type: "Data"
+  top: "test/data"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+}
+layer {
+  name: "test/val_label"
+  type: "Data"
+  top: "test/label"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+}
+layer {
+  name: "test/deploy_data"
+  type: "Input"
+  top: "test/data"
+  include {
+    phase: TEST
+    not_stage: "val"
+  }
+}
+layer {
+  name: "test/train_transform"
+  type: "DetectNetTransformation"
+  bottom: "test/data"
+  bottom: "test/label"
+  top: "test/transformed_data"
+  top: "test/transformed_label"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    mean_value: 127.0
+  }
+  detectnet_groundtruth_param {
+    stride: 16
+    scale_cvg: 0.4
+    gridbox_type: GRIDBOX_MIN
+    min_cvg_len: 20
+    coverage_type: RECTANGULAR
+    image_size_x: 1300
+    image_size_y: 1024
+    obj_norm: true
+    crop_bboxes: false
+    object_class: { src: 1 dst: 0} # faces -> 0
+    object_class: { src: 2 dst: 1} # bags -> 1
+  }
+  detectnet_augmentation_param {
+    crop_prob: 1.0
+    shift_x: 32
+    shift_y: 32
+    scale_prob: 0.3
+    scale_min: 0.8
+    scale_max: 1.2
+    flip_prob: 0.5
+    rotation_prob: 0.4
+    max_rotate_degree: 10.0
+    hue_rotation_prob: 0.3
+    hue_rotation: 30.0
+    desaturation_prob: 0.4
+    desaturation_max: 0.8
+  }
+}
+layer {
+  name: "test/val_transform"
+  type: "DetectNetTransformation"
+  bottom: "test/data"
+  bottom: "test/label"
+  top: "test/transformed_data"
+  top: "test/transformed_label"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  transform_param {
+    mean_value: 127.0
+  }
+  detectnet_groundtruth_param {
+    stride: 16
+    scale_cvg: 0.4
+    gridbox_type: GRIDBOX_MIN
+    min_cvg_len: 20
+    coverage_type: RECTANGULAR
+    image_size_x: 1300
+    image_size_y: 1024
+    obj_norm: true
+    crop_bboxes: false
+    object_class: { src: 1 dst: 0} # faces -> 0
+    object_class: { src: 2 dst: 1} # bags -> 1
+  }
+}
+layer {
+  name: "test/deploy_transform"
+  type: "Power"
+  bottom: "test/data"
+  top: "test/transformed_data"
+  include {
+    phase: TEST
+    not_stage: "val"
+  }
+  power_param {
+    shift: -127.0
+  }
+}
+layer {
+  name: "test/slice-label"
+  type: "Slice"
+  bottom: "test/transformed_label"
+  top: "test/foreground-label"
+  top: "test/bbox-label"
+  top: "test/size-label"
+  top: "test/obj-label"
+  top: "test/coverage-label"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  slice_param {
+    slice_dim: 1
+    slice_point: 1
+    slice_point: 5
+    slice_point: 7
+    slice_point: 8
+  }
+}
+layer {
+  name: "test/coverage-block"
+  type: "Concat"
+  bottom: "test/foreground-label"
+  bottom: "test/foreground-label"
+  bottom: "test/foreground-label"
+  bottom: "test/foreground-label"
+  top: "test/coverage-block"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  concat_param {
+    concat_dim: 1
+  }
+}
+layer {
+  name: "test/size-block"
+  type: "Concat"
+  bottom: "test/size-label"
+  bottom: "test/size-label"
+  top: "test/size-block"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  concat_param {
+    concat_dim: 1
+  }
+}
+layer {
+  name: "test/obj-block"
+  type: "Concat"
+  bottom: "test/obj-label"
+  bottom: "test/obj-label"
+  bottom: "test/obj-label"
+  bottom: "test/obj-label"
+  top: "test/obj-block"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  concat_param {
+    concat_dim: 1
+  }
+}
+layer {
+  name: "test/bb-label-norm"
+  type: "Eltwise"
+  bottom: "test/bbox-label"
+  bottom: "test/size-block"
+  top: "test/bbox-label-norm"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  eltwise_param {
+    operation: PROD
+  }
+}
+layer {
+  name: "test/bb-obj-norm"
+  type: "Eltwise"
+  bottom: "test/bbox-label-norm"
+  bottom: "test/obj-block"
+  top: "test/bbox-obj-label-norm"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  eltwise_param {
+    operation: PROD
+  }
+}
+
+
+
+layer {
+  name: "bbox_mask"
+  type: "Eltwise"
+  bottom: "bboxes"
+  bottom: "coverage-block"
+  top: "bboxes-masked"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  eltwise_param {
+    operation: PROD
+  }
+}
+layer {
+  name: "bbox-norm"
+  type: "Eltwise"
+  bottom: "bboxes-masked"
+  bottom: "size-block"
+  top: "bboxes-masked-norm"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  eltwise_param {
+    operation: PROD
+  }
+}
+layer {
+  name: "bbox-obj-norm"
+  type: "Eltwise"
+  bottom: "bboxes-masked-norm"
+  bottom: "obj-block"
+  top: "bboxes-obj-masked-norm"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  eltwise_param {
+    operation: PROD
+  }
+}
+layer {
+  name: "bbox_loss"
+  type: "L1Loss"
+  bottom: "bboxes-obj-masked-norm"
+  bottom: "bbox-obj-label-norm"
+  top: "loss_bbox"
+  loss_weight: 2.0
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+}
+layer {
+  name: "coverage_loss"
+  type: "EuclideanLoss"
+  bottom: "coverage"
+  bottom: "coverage-label"
+  top: "loss_coverage"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+}
+layer {
+  name: "cluster"
+  type: "Python"
+  bottom: "coverage"
+  bottom: "bboxes"
+  top: "bbox-list-faces"
+  top: "bbox-list-bags"
+  include {
+    phase: TEST
+  }
+  python_param {
+    module: "caffe.layers.detectnet.clustering"
+    layer: "ClusterDetections"
+    param_str: "1300, 1024, 16, 0.06, 2, 0.025, 22, 2"
+  }
+}
+layer {
+  name: "cluster_gt"
+  type: "Python"
+  bottom: "coverage-label"
+  bottom: "bbox-label"
+  top: "bbox-list-label-faces"
+  top: "bbox-list-label-bags"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  python_param {
+    module: "caffe.layers.detectnet.clustering"
+    layer: "ClusterGroundtruth"
+    param_str: "1300, 1024, 16, 2"
+  }
+}
+
+# SCORE AND MAP LAYERS FOR EACH CLASS
+
+layer {
+  name: "score-faces"
+  type: "Python"
+  bottom: "bbox-list-label-faces"
+  bottom: "bbox-list-faces"
+  top: "bbox-list-scored-faces"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  python_param {
+    module: "caffe.layers.detectnet.mean_ap"
+    layer: "ScoreDetections"
+  }
+}
+layer {
+  name: "mAP-faces"
+  type: "Python"
+  bottom: "bbox-list-scored-faces"
+  top: "mAP-face"
+  top: "precision-face"
+  top: "recall-face"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  python_param {
+    module: "caffe.layers.detectnet.mean_ap"
+    layer: "mAP"
+    param_str: "1300, 1024, 16"
+  }
+}
+
+layer {
+  name: "score-bags"
+  type: "Python"
+  bottom: "bbox-list-label-bags"
+  bottom: "bbox-list-bags"
+  top: "bbox-list-scored-bags"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  python_param {
+    module: "caffe.layers.detectnet.mean_ap"
+    layer: "ScoreDetections"
+  }
+}
+layer {
+  name: "mAP-bags"
+  type: "Python"
+  bottom: "bbox-list-scored-bags"
+  top: "mAP-bag"
+  top: "precision-bag"
+  top: "recall-bag"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  python_param {
+    module: "caffe.layers.detectnet.mean_ap"
+    layer: "mAP"
+    param_str: "1300, 1024, 16"
+  }
+}

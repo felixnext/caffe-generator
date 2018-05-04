@@ -1,0 +1,34 @@
+layer {
+  name: "[name:conv1]"
+  type: "Convolution"
+  bottom: "[INPUT:0]"
+  top: "[name:conv1]"
+  param {
+    lr_mult: [kernel_lr:1.0]
+    decay_mult: [kernel_decay:1.0]
+  }
+  param {
+    lr_mult: [bias_lr:2.0]
+    decay_mult: [bias_decay:0.0]
+  }
+  convolution_param {
+    num_output: [fmaps]
+    pad: [[int([kernel] / 2)]]
+    kernel_size: [kernel]
+    stride: [stride:1]
+    weight_filler {
+      type: "[init:msra]"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "[name:conv1]/[act_fct]"
+  type: "[act_fct]"
+  bottom: "[name:conv1]"
+  top: "[name:conv1]"
+}

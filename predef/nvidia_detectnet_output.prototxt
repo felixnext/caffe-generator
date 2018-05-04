@@ -1,0 +1,145 @@
+layer {
+  name: "bbox_mask"
+  type: "Eltwise"
+  # input: bboxes
+  bottom: "[INPUT:0]"
+  bottom: "[INPUT:cvg-block]"
+  top: "bboxes-masked"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  eltwise_param {
+    operation: PROD
+  }
+}
+layer {
+  name: "bbox-norm"
+  type: "Eltwise"
+  bottom: "bboxes-masked"
+  bottom: "[INPUT:size-block]"
+  top: "bboxes-masked-norm"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  eltwise_param {
+    operation: PROD
+  }
+}
+layer {
+  name: "bbox-obj-norm"
+  type: "Eltwise"
+  bottom: "bboxes-masked-norm"
+  bottom: "[INPUT:obj-block]"
+  top: "bboxes-obj-masked-norm"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  eltwise_param {
+    operation: PROD
+  }
+}
+layer {
+  name: "bbox_loss"
+  type: "L1Loss"
+  bottom: "bboxes-obj-masked-norm"
+  bottom: "[INPUT:bblbl-norm]"
+  top: "loss_bbox"
+  loss_weight: 2.0
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+}
+layer {
+  name: "coverage_loss"
+  type: "EuclideanLoss"
+  # input: coverage
+  bottom: "[INPUT:1]"
+  bottom: "[INPUT:cvg-lbl]"
+  top: "loss_coverage"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+}
+layer {
+  name: "cluster"
+  type: "Python"
+  bottom: "[INPUT:1]"
+  bottom: "[INPUT:0]"
+  top: "bbox-list"
+  include {
+    phase: TEST
+  }
+  python_param {
+    module: "caffe.layers.detectnet.clustering"
+    layer: "ClusterDetections"
+    param_str: "[size_x], [size_y], [stride], 0.06, 2, 0.025, 1"
+  }
+}
+layer {
+  name: "cluster_gt"
+  type: "Python"
+  bottom: "[INPUT:cvg-lbl]"
+  bottom: "[INPUT:bb-lbl]"
+  top: "bbox-list-label"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  python_param {
+    module: "caffe.layers.detectnet.clustering"
+    layer: "ClusterGroundtruth"
+    param_str: "[size_x], [size_y], [stride], 1"
+  }
+}
+layer {
+  name: "score"
+  type: "Python"
+  bottom: "bbox-list-label"
+  bottom: "bbox-list"
+  top: "bbox-list-scored"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  python_param {
+    module: "caffe.layers.detectnet.mean_ap"
+    layer: "ScoreDetections"
+  }
+}
+layer {
+  name: "mAP"
+  type: "Python"
+  bottom: "bbox-list-scored"
+  top: "mAP"
+  top: "precision"
+  top: "recall"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  python_param {
+    module: "caffe.layers.detectnet.mean_ap"
+    layer: "mAP"
+    param_str: "[size_x] [size_y], [stride]"
+  }
+}

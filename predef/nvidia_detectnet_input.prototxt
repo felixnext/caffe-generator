@@ -1,0 +1,237 @@
+layer {
+  name: "train_data"
+  type: "Data"
+  top: "data"
+  include {
+    phase: TRAIN
+  }
+}
+layer {
+  name: "train_label"
+  type: "Data"
+  top: "label"
+  include {
+    phase: TRAIN
+  }
+}
+layer {
+  name: "val_data"
+  type: "Data"
+  top: "data"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+}
+layer {
+  name: "val_label"
+  type: "Data"
+  top: "label"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+}
+layer {
+  name: "deploy_data"
+  type: "Input"
+  top: "data"
+  include {
+    phase: TEST
+    not_stage: "val"
+  }
+}
+layer {
+  name: "train_transform"
+  type: "DetectNetTransformation"
+  bottom: "data"
+  bottom: "label"
+  top: "transformed_data"
+  top: "transformed_label"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    mean_value: 127.0
+  }
+  detectnet_groundtruth_param {
+    stride: [stride:16]
+    scale_cvg: 0.4
+    gridbox_type: GRIDBOX_MIN
+    min_cvg_len: 20
+    coverage_type: RECTANGULAR
+    image_size_x: [size_x]
+    image_size_y: [size_y]
+    obj_norm: true
+    crop_bboxes: false
+  }
+  detectnet_augmentation_param {
+    crop_prob: [aug_crop_prob:0.5]
+    shift_x: [aug_shift_x:32]
+    shift_y: [aug_shift_y:32]
+    scale_prob: [aug_scale_prob:0.5]
+    scale_min: [aug_scale_min:0.8]
+    scale_max: [aug_scale_max:1.2]
+    flip_prob: [aug_flip_prob:0.5]
+    rotation_prob: [aug_rotation_prob:0.4]
+    max_rotate_degree: [aug_rotate_dregree:5.0]
+    hue_rotation_prob: [aug_hue_rotation_prob:0.3]
+    hue_rotation: [aug_hue_rotation:30.0]
+    desaturation_prob: [aug_desaturation_prob:0.4]
+    desaturation_max: [aug_desaturation_max:0.8]
+  }
+}
+layer {
+  name: "val_transform"
+  type: "DetectNetTransformation"
+  bottom: "data"
+  bottom: "label"
+  top: "transformed_data"
+  top: "transformed_label"
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  transform_param {
+    mean_value: 127.0
+  }
+  detectnet_groundtruth_param {
+    stride: [stride:16]
+    scale_cvg: 0.4
+    gridbox_type: GRIDBOX_MIN
+    min_cvg_len: 20
+    coverage_type: RECTANGULAR
+    image_size_x: [size_x]
+    image_size_y: [size_y]
+    obj_norm: true
+    crop_bboxes: false
+  }
+}
+layer {
+  name: "deploy_transform"
+  type: "Power"
+  bottom: "data"
+  top: "transformed_data"
+  include {
+    phase: TEST
+    not_stage: "val"
+  }
+  power_param {
+    shift: -127.0
+  }
+}
+layer {
+  name: "slice-label"
+  type: "Slice"
+  bottom: "transformed_label"
+  top: "foreground-label"
+  top: "bbox-label"
+  top: "size-label"
+  top: "obj-label"
+  top: "coverage-label"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  slice_param {
+    slice_dim: 1
+    slice_point: 1
+    slice_point: 5
+    slice_point: 7
+    slice_point: 8
+  }
+}
+layer {
+  name: "coverage-block"
+  type: "Concat"
+  bottom: "foreground-label"
+  bottom: "foreground-label"
+  bottom: "foreground-label"
+  bottom: "foreground-label"
+  top: "coverage-block"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  concat_param {
+    concat_dim: 1
+  }
+}
+layer {
+  name: "size-block"
+  type: "Concat"
+  bottom: "size-label"
+  bottom: "size-label"
+  top: "size-block"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  concat_param {
+    concat_dim: 1
+  }
+}
+layer {
+  name: "obj-block"
+  type: "Concat"
+  bottom: "obj-label"
+  bottom: "obj-label"
+  bottom: "obj-label"
+  bottom: "obj-label"
+  top: "obj-block"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  concat_param {
+    concat_dim: 1
+  }
+}
+layer {
+  name: "bb-label-norm"
+  type: "Eltwise"
+  bottom: "bbox-label"
+  bottom: "size-block"
+  top: "bbox-label-norm"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  eltwise_param {
+    operation: PROD
+  }
+}
+layer {
+  name: "bb-obj-norm"
+  type: "Eltwise"
+  bottom: "bbox-label-norm"
+  bottom: "obj-block"
+  top: "bbox-obj-label-norm"
+  include {
+    phase: TRAIN
+  }
+  include {
+    phase: TEST
+    stage: "val"
+  }
+  eltwise_param {
+    operation: PROD
+  }
+}
+
+[transformed_data, [cvg-block:coverage-block], [cvg-lbl:coverage-label], [bb-lbl:bbox-label], [size-block:size-block], [obj-block:obj-block], [bblbl-norm:bbox-obj-label-norm]]

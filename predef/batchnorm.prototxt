@@ -1,0 +1,19 @@
+layer {
+  name: "[name:batchnorm]"
+  type: "BatchNorm"
+  bottom: "[INPUT:0]"
+  top: "[name:batchnorm]"
+  param {
+    lr_mult: [lr:1]
+  }
+  batch_norm_param {
+    scale_filler {
+      type: "constant"
+      value: [scale:1]
+    }
+    bias_filler {
+      type: "constant"
+      value: [bias:0]
+    }
+  }
+}

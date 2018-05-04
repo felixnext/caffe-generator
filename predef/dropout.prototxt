@@ -1,0 +1,22 @@
+layer {
+  name: "[name:dropout]"
+  type: "Dropout"
+  bottom: "[INPUT:0]"
+  top: "[name:dropout]"
+  dropout_param {
+    dropout_ratio: [ratio:0.2]
+  }
+  exclude {
+    phase: TEST
+  }
+}
+
+layer {
+  name: "[name:dropout]"
+  type: "Concat"
+  bottom: "[INPUT:0]"
+  top: "[name:dropout]"
+  include {
+    phase: TEST
+  }
+}

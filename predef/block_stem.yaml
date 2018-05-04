@@ -1,0 +1,25 @@
+description: "STEM Block for input conversion"
+
+params:
+  act_fct: ReLU
+  fmaps: 32
+  depth: 4
+  pool_depth: 1
+  stride: 16
+
+blocks:
+  - name: conv
+    file: conv
+    type: predef
+    repeat: "!!::depth - ::pool_depth"
+    params:
+      name: conv
+      stride: "!!int(::stride / ::depth)"
+
+  - name: pool
+    file: pool
+    type: predef
+    repeat: ::pool_depth
+    params:
+      name: pool
+      stride: "!!int(::stride / ::depth)"
